@@ -23,3 +23,13 @@ void edges(int height, int width, RGBTRIPLE image[height][width])
 {
     return;
 }
+// Detect edges
+void sepia(int height, int width, RGBTRIPLE image[height][width])
+{
+    return;
+}
+// Detect edges
+void negative(int height, int width, RGBTRIPLE image[height][width])
+{
+    return;
+}

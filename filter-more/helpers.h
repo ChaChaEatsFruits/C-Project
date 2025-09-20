@@ -12,3 +12,8 @@ void edges(int height, int width, RGBTRIPLE image[height][width]);
 // Blur image
 void blur(int height, int width, RGBTRIPLE image[height][width]);
 
+// Negative image
+void negative(int height, int width,RGBTRIPLE image[height][width]);
+
+// 
+void sepia(int height, int width,RGBTRIPLE image[height][width]);
