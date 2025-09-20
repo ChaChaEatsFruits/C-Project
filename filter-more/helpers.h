@@ -15,5 +15,5 @@ void blur(int height, int width, RGBTRIPLE image[height][width]);
 // Negative image
 void negative(int height, int width,RGBTRIPLE image[height][width]);
 
-// 
+// Sepia filter
 void sepia(int height, int width,RGBTRIPLE image[height][width]);
