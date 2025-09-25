@@ -179,3 +179,107 @@ void negative(int height, int width, RGBTRIPLE image[height][width])
     }
     return;
 }
+
+// Sharpen image
+void sharpen(int height, int width, RGBTRIPLE image[height][width])
+{
+    // Create a temporary copy of the image
+    RGBTRIPLE temp[height][width];
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            temp[i][j] = image[i][j];
+        }
+    }
+
+    // Sharpening kernel
+    int kernel[3][3] = {
+        {-1, -1, -1},
+        {-1,  9, -1},
+        {-1, -1, -1}
+    };
+
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            float newRed = 0, newGreen = 0, newBlue = 0;
+
+            // Iterate over the 3x3 grid around the pixel
+            for (int di = -1; di <= 1; di++)
+            {
+                for (int dj = -1; dj <= 1; dj++)
+                {
+                    int new_i = i + di;
+                    int new_j = j + dj;
+
+                    // Check if the neighbor is within image bounds
+                    if (new_i >= 0 && new_i < height && new_j >= 0 && new_j < width)
+                    {
+                        newRed += temp[new_i][new_j].rgbtRed * kernel[di + 1][dj + 1];
+                        newGreen += temp[new_i][new_j].rgbtGreen * kernel[di + 1][dj + 1];
+                        newBlue += temp[new_i][new_j].rgbtBlue * kernel[di + 1][dj + 1];
+                    }
+                }
+            }
+
+            // Cap values at 0 and 255
+            image[i][j].rgbtRed = fmin(255, fmax(0, round(newRed)));
+            image[i][j].rgbtGreen = fmin(255, fmax(0, round(newGreen)));
+            image[i][j].rgbtBlue = fmin(255, fmax(0, round(newBlue)));
+        }
+    }
+    return;
+}
+
+// Emboss image
+void emboss(int height, int width, RGBTRIPLE image[height][width])
+{
+    // Create a temporary copy of the image
+    RGBTRIPLE temp[height][width];
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            temp[i][j] = image[i][j];
+        }
+    }
+
+    // Emboss kernel
+    int kernel[3][3] = {
+        {-2, -1, 0},
+        {-1,  1, 1},
+        { 0,  1, 2}
+    };
+
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            float newRed = 0, newGreen = 0, newBlue = 0;
+
+            for (int di = -1; di <= 1; di++)
+            {
+                for (int dj = -1; dj <= 1; dj++)
+                {
+                    int new_i = i + di;
+                    int new_j = j + dj;
+
+                    if (new_i >= 0 && new_i < height && new_j >= 0 && new_j < width)
+                    {
+                        newRed += temp[new_i][new_j].rgbtRed * kernel[di + 1][dj + 1];
+                        newGreen += temp[new_i][new_j].rgbtGreen * kernel[di + 1][dj + 1];
+                        newBlue += temp[new_i][new_j].rgbtBlue * kernel[di + 1][dj + 1];
+                    }
+                }
+            }
+
+            // Cap values at 0 and 255
+            image[i][j].rgbtRed = fmin(255, fmax(0, round(newRed)));
+            image[i][j].rgbtGreen = fmin(255, fmax(0, round(newGreen)));
+            image[i][j].rgbtBlue = fmin(255, fmax(0, round(newBlue)));
+        }
+    }
+    return;
+}

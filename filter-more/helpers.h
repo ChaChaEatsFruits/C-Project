@@ -17,3 +17,9 @@ void negative(int height, int width,RGBTRIPLE image[height][width]);
 
 // Sepia filter
 void sepia(int height, int width,RGBTRIPLE image[height][width]);
+
+// sharpen filter
+void sharpen(int height, int width, RGBTRIPLE image[height][width]);
+
+// emboss filter
+void emboss(int height, int width, RGBTRIPLE image[height][width]);
