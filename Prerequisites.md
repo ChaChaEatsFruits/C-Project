@@ -6,8 +6,12 @@
 `curl -o ~/bin/wsl-open https://raw.githubusercontent.com/4U6U57/wsl-open/master/wsl-open.sh`<br>
 `source ~/.bashrc`<br>
 
-## 3. gtk-4 installed in ubuntu
+## 3. gtk-4 installation in ubuntu
 `sudo apt-get install libgtk-4-dev
+`
+## gtk-4 installation in Mac OS
+`
+brew install gtk4 pkg-config
 `
 ## 4. updated gtk-4 main.c file 
 ## 5. XLaunch is required to run the GUI alongside the windows
