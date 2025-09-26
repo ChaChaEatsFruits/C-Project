@@ -5,9 +5,9 @@
 4. XLaunch is required to run the GUI alongside the windows
 
 Compile Command: 
-`
+
 gcc main.c helpers.c -o image_editor `pkg-config --cflags --libs gtk4` -lm
-`
+
 Run command:
 
  ./image_filter
