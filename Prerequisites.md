@@ -7,7 +7,7 @@
 `source ~/.bashrc`<br>
 
 ## 3. gtk-4 installed in ubuntu
-`sudo apt-get install libgtk-3-dev
+`sudo apt-get install libgtk-4-dev
 `
 ## 4. updated gtk-4 main.c file 
 ## 5. XLaunch is required to run the GUI alongside the windows
