@@ -23,9 +23,9 @@ gcc main.c helpers.c -o image_editor `pkg-config --cflags --libs gtk4` -lm
 
  ## To see the ouput image two ways can be followed
  The repo has to be cloned in the Ubuntu 
- 1. In windows system :
+ 1. In windows system :<br>
     Go to <b>File Explorer</b>, click on the address bar and then type `\\wsl$` and hit <b>Enter</b><br>
     Click on the <b>Ubuntu-24.04</b> -> <b>home</b> -> <b><Your username></b> -> <b>Ubuntu-24.04</b> <br>
     Choose the Project Folder and then choose the output image.
- 2. In Ubuntu System:
+ 2. In Ubuntu System:<br>
     Install <b>wsl-open</b> using the above procedure and then use the command `wsl-open` filtered-image.png
