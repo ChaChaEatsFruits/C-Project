@@ -1,13 +1,13 @@
 #include <gtk/gtk.h>
 #include "helpers.h"
 #include <stdlib.h>
-#include <gdk-pixbuf-2.0/gdk-pixbuf/gdk-pixbuf-core.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
 
 // A struct to hold pointers to widgets we need to access in different functions
 typedef struct
 {
-    GtkWidget *window;
-    GtkWidget *image_display;
+    GtkWindow *window;
+    GtkImage *image_display;
     GtkWidget *filter_box;
     GtkWidget *save_button;
     GdkPixbuf *current_pixbuf;
@@ -22,7 +22,6 @@ RGBTRIPLE (*pixbuf_to_rgbtriple(GdkPixbuf *pixbuf, int *height, int *width))[0]
     int rowstride = gdk_pixbuf_get_rowstride(pixbuf);
     guchar *pixels = gdk_pixbuf_get_pixels(pixbuf);
 
-    // Allocate memory for the 2D array
     RGBTRIPLE (*image)[*width] = malloc(sizeof(RGBTRIPLE[*height][*width]));
     if (!image)
     {
@@ -45,7 +44,6 @@ RGBTRIPLE (*pixbuf_to_rgbtriple(GdkPixbuf *pixbuf, int *height, int *width))[0]
 // Function to convert a 2D RGBTRIPLE array back to a GdkPixbuf
 GdkPixbuf *rgbtriple_to_pixbuf(int height, int width, RGBTRIPLE image[height][width])
 {
-    // Create a new pixbuf
     GdkPixbuf *pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, FALSE, 8, width, height);
     if (!pixbuf)
     {
@@ -59,7 +57,7 @@ GdkPixbuf *rgbtriple_to_pixbuf(int height, int width, RGBTRIPLE image[height][wi
     {
         for (int j = 0; j < width; j++)
         {
-            guchar *p = pixels + i * rowstride + j * 3; // 3 channels (RGB)
+            guchar *p = pixels + i * rowstride + j * 3;
             p[0] = image[i][j].rgbtRed;
             p[1] = image[i][j].rgbtGreen;
             p[2] = image[i][j].rgbtBlue;
@@ -76,11 +74,10 @@ static void apply_filter(GtkButton *button, gpointer user_data)
 
     if (!widgets->current_pixbuf)
     {
-        return; // No image loaded
+        return;
     }
 
     int height, width;
-    // Convert pixbuf to our custom format
     RGBTRIPLE (*image_data)[width] = pixbuf_to_rgbtriple(widgets->current_pixbuf, &height, &width);
     if (!image_data)
     {
@@ -88,7 +85,6 @@ static void apply_filter(GtkButton *button, gpointer user_data)
         return;
     }
 
-    // Apply the selected filter
     if (g_strcmp0(filter_name, "Grayscale") == 0)      grayscale(height, width, image_data);
     else if (g_strcmp0(filter_name, "Reflect") == 0)   reflect(height, width, image_data);
     else if (g_strcmp0(filter_name, "Blur") == 0)      blur(height, width, image_data);
@@ -98,101 +94,92 @@ static void apply_filter(GtkButton *button, gpointer user_data)
     else if (g_strcmp0(filter_name, "Sharpen") == 0)   sharpen(height, width, image_data);
     else if (g_strcmp0(filter_name, "Emboss") == 0)    emboss(height, width, image_data);
 
-    // Convert back to pixbuf
     GdkPixbuf *new_pixbuf = rgbtriple_to_pixbuf(height, width, image_data);
-    free(image_data); // Free the memory for our custom array
+    free(image_data);
 
     if (new_pixbuf)
     {
-        // Free the old pixbuf and update the UI
         g_object_unref(widgets->current_pixbuf);
         widgets->current_pixbuf = new_pixbuf;
-        gtk_image_set_from_pixbuf(GTK_IMAGE(widgets->image_display), widgets->current_pixbuf);
+        gtk_image_set_from_paintable(widgets->image_display, GDK_PAINTABLE(widgets->current_pixbuf));
     }
 }
 
+// Modern GTK4 callback for the "Open" dialog
+static void open_cb(GObject *source_object, GAsyncResult *res, gpointer user_data)
+{
+    AppWidgets *widgets = (AppWidgets *)user_data;
+    GtkFileDialog *dialog = GTK_FILE_DIALOG(source_object);
+    GFile *file = gtk_file_dialog_open_finish(dialog, res, NULL);
 
-// Callback for the "Open" button
+    if (file)
+    {
+        if (widgets->current_pixbuf)
+        {
+            g_object_unref(widgets->current_pixbuf);
+        }
+        char *path = g_file_get_path(file);
+        // Corrected function call with only two arguments
+        widgets->current_pixbuf = gdk_pixbuf_new_from_file(path, NULL);
+        g_free(path);
+
+        if (widgets->current_pixbuf)
+        {
+            gtk_image_set_from_paintable(widgets->image_display, GDK_PAINTABLE(widgets->current_pixbuf));
+            gtk_widget_set_sensitive(widgets->filter_box, TRUE);
+            gtk_widget_set_sensitive(widgets->save_button, TRUE);
+        }
+        g_object_unref(file);
+    }
+}
+
+// Callback for the "Open" button, using modern GTK4 API
 static void on_open_clicked(GtkButton *button, gpointer user_data)
 {
     AppWidgets *widgets = (AppWidgets *)user_data;
-    GtkWidget *dialog = gtk_file_chooser_dialog_new("Open Image", GTK_WINDOW(widgets->window),
-                                                    GTK_FILE_CHOOSER_ACTION_OPEN,
-                                                    "_Cancel", GTK_RESPONSE_CANCEL,
-                                                    "_Open", GTK_RESPONSE_ACCEPT,
-                                                    NULL);
-
-    // Add image file filters
-    GtkFileFilter *filter = gtk_file_filter_new();
-    gtk_file_filter_set_name(filter, "Image Files");
-    gtk_file_filter_add_pixbuf_formats(filter);
-    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter);
-
-    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
-    {
-        GFile *file = gtk_file_chooser_get_file(GTK_FILE_CHOOSER(dialog));
-        if (file)
-        {
-            if (widgets->current_pixbuf)
-            {
-                g_object_unref(widgets->current_pixbuf);
-            }
-            widgets->current_pixbuf = gdk_pixbuf_new_from_gfile(file, NULL, NULL);
-            if (widgets->current_pixbuf)
-            {
-                gtk_image_set_from_pixbuf(GTK_IMAGE(widgets->image_display), widgets->current_pixbuf);
-                // Enable filter and save buttons
-                gtk_widget_set_sensitive(widgets->filter_box, TRUE);
-                gtk_widget_set_sensitive(widgets->save_button, TRUE);
-            }
-            g_object_unref(file);
-        }
-    }
-    gtk_widget_destroy(dialog);
+    GtkFileDialog *dialog = gtk_file_dialog_new();
+    gtk_file_dialog_open(dialog, widgets->window, NULL, open_cb, user_data);
+    g_object_unref(dialog);
 }
 
-// Callback for the "Save" button
+// Modern GTK4 callback for the "Save" dialog
+static void save_cb(GObject *source_object, GAsyncResult *res, gpointer user_data)
+{
+    AppWidgets *widgets = (AppWidgets *)user_data;
+    GtkFileDialog *dialog = GTK_FILE_DIALOG(source_object);
+    GFile *file = gtk_file_dialog_save_finish(dialog, res, NULL);
+
+    if (file)
+    {
+        char *path = g_file_get_path(file);
+        gdk_pixbuf_save(widgets->current_pixbuf, path, "png", NULL, NULL);
+        g_free(path);
+        g_object_unref(file);
+    }
+}
+
+// Callback for the "Save" button, using modern GTK4 API
 static void on_save_clicked(GtkButton *button, gpointer user_data)
 {
     AppWidgets *widgets = (AppWidgets *)user_data;
-     GtkWidget *dialog = gtk_file_chooser_dialog_new("Save Image", GTK_WINDOW(widgets->window),
-                                                    GTK_FILE_CHOOSER_ACTION_SAVE,
-                                                    "_Cancel", GTK_RESPONSE_CANCEL,
-                                                    "_Save", GTK_RESPONSE_ACCEPT,
-                                                    NULL);
-
-    gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(dialog), "filtered-image.png");
-
-    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
-    {
-        GFile *file = gtk_file_chooser_get_file(GTK_FILE_CHOOSER(dialog));
-        if (file)
-        {
-            const char *path = g_file_get_path(file);
-            gdk_pixbuf_save(widgets->current_pixbuf, path, "png", NULL, NULL);
-            g_object_unref(file);
-        }
-    }
-    gtk_widget_destroy(dialog);
+    GtkFileDialog *dialog = gtk_file_dialog_new();
+    gtk_file_dialog_set_initial_name(dialog, "filtered-image.png");
+    gtk_file_dialog_save(dialog, widgets->window, NULL, save_cb, user_data);
+    g_object_unref(dialog);
 }
-
 
 // This function is called when the application is activated
 static void activate(GtkApplication *app, gpointer user_data)
 {
     AppWidgets *widgets = (AppWidgets *)user_data;
 
-    // Main Window
-    widgets->window = gtk_application_window_new(app);
-    gtk_window_set_title(GTK_WINDOW(widgets->window), "C Image Filters");
-    gtk_window_set_default_size(GTK_WINDOW(widgets->window), 800, 600);
+    widgets->window = GTK_WINDOW(gtk_application_window_new(app));
+    gtk_window_set_title(widgets->window, "C Image Filters");
+    gtk_window_set_default_size(widgets->window, 800, 600);
 
-    // Header Bar
     GtkWidget *header = gtk_header_bar_new();
-    gtk_header_bar_set_show_title_buttons(GTK_HEADER_BAR(header), TRUE);
-    gtk_window_set_titlebar(GTK_WINDOW(widgets->window), header);
+    gtk_window_set_titlebar(widgets->window, header);
 
-    // Open and Save Buttons in Header
     GtkWidget *open_button = gtk_button_new_with_label("Open");
     g_signal_connect(open_button, "clicked", G_CALLBACK(on_open_clicked), widgets);
     gtk_header_bar_pack_start(GTK_HEADER_BAR(header), open_button);
@@ -200,24 +187,19 @@ static void activate(GtkApplication *app, gpointer user_data)
     widgets->save_button = gtk_button_new_with_label("Save");
     g_signal_connect(widgets->save_button, "clicked", G_CALLBACK(on_save_clicked), widgets);
     gtk_header_bar_pack_end(GTK_HEADER_BAR(header), widgets->save_button);
-    gtk_widget_set_sensitive(widgets->save_button, FALSE); // Initially disabled
+    gtk_widget_set_sensitive(widgets->save_button, FALSE);
 
-    // Main Vertical Box
     GtkWidget *main_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
-    gtk_window_set_child(GTK_WINDOW(widgets->window), main_box);
+    gtk_window_set_child(widgets->window, main_box);
 
-    // Image Display Area
-    widgets->image_display = gtk_image_new();
-    gtk_image_set_icon_size(GTK_IMAGE(widgets->image_display), GTK_ICON_SIZE_LARGE);
-    gtk_widget_set_vexpand(widgets->image_display, TRUE);
-    gtk_box_append(GTK_BOX(main_box), widgets->image_display);
+    widgets->image_display = GTK_IMAGE(gtk_image_new());
+    gtk_widget_set_vexpand(GTK_WIDGET(widgets->image_display), TRUE);
+    gtk_box_append(GTK_BOX(main_box), GTK_WIDGET(widgets->image_display));
 
-    // Box for Filter Buttons
     widgets->filter_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     gtk_widget_set_halign(widgets->filter_box, GTK_ALIGN_CENTER);
     gtk_box_append(GTK_BOX(main_box), widgets->filter_box);
 
-    // Create Filter Buttons
     const char *filter_names[] = {"Grayscale", "Reflect", "Blur", "Edges", "Sepia", "Negative", "Sharpen", "Emboss"};
     for (int i = 0; i < G_N_ELEMENTS(filter_names); i++)
     {
@@ -225,9 +207,9 @@ static void activate(GtkApplication *app, gpointer user_data)
         g_signal_connect(button, "clicked", G_CALLBACK(apply_filter), widgets);
         gtk_box_append(GTK_BOX(widgets->filter_box), button);
     }
-    gtk_widget_set_sensitive(widgets->filter_box, FALSE); // Initially disabled
+    gtk_widget_set_sensitive(widgets->filter_box, FALSE);
 
-    gtk_window_present(GTK_WINDOW(widgets->window));
+    gtk_window_present(widgets->window);
 }
 
 int main(int argc, char **argv)
@@ -235,7 +217,6 @@ int main(int argc, char **argv)
     GtkApplication *app;
     int status;
 
-    // Allocate our main widget struct
     AppWidgets *widgets = g_new(AppWidgets, 1);
     widgets->current_pixbuf = NULL;
 
@@ -244,7 +225,6 @@ int main(int argc, char **argv)
     status = g_application_run(G_APPLICATION(app), argc, argv);
     g_object_unref(app);
 
-    // Clean up
     if (widgets->current_pixbuf)
     {
         g_object_unref(widgets->current_pixbuf);
@@ -253,3 +233,4 @@ int main(int argc, char **argv)
 
     return status;
 }
+
