@@ -73,9 +73,7 @@ static void apply_filter(GtkButton *button, gpointer user_data)
     const char *filter_name = gtk_button_get_label(button);
 
     if (!widgets->current_pixbuf)
-    {
         return;
-    }
 
     int height, width;
     RGBTRIPLE (*image_data)[width] = pixbuf_to_rgbtriple(widgets->current_pixbuf, &height, &width);
@@ -101,7 +99,10 @@ static void apply_filter(GtkButton *button, gpointer user_data)
     {
         g_object_unref(widgets->current_pixbuf);
         widgets->current_pixbuf = new_pixbuf;
-        gtk_image_set_from_paintable(widgets->image_display, GDK_PAINTABLE(widgets->current_pixbuf));
+
+        GdkTexture *texture = gdk_texture_new_for_pixbuf(widgets->current_pixbuf);
+        gtk_image_set_from_paintable(widgets->image_display, GDK_PAINTABLE(texture));
+        g_object_unref(texture);
     }
 }
 
@@ -118,14 +119,17 @@ static void open_cb(GObject *source_object, GAsyncResult *res, gpointer user_dat
         {
             g_object_unref(widgets->current_pixbuf);
         }
+
         char *path = g_file_get_path(file);
-        // Corrected function call with only two arguments
         widgets->current_pixbuf = gdk_pixbuf_new_from_file(path, NULL);
         g_free(path);
 
         if (widgets->current_pixbuf)
         {
-            gtk_image_set_from_paintable(widgets->image_display, GDK_PAINTABLE(widgets->current_pixbuf));
+            GdkTexture *texture = gdk_texture_new_for_pixbuf(widgets->current_pixbuf);
+            gtk_image_set_from_paintable(widgets->image_display, GDK_PAINTABLE(texture));
+            g_object_unref(texture);
+
             gtk_widget_set_sensitive(widgets->filter_box, TRUE);
             gtk_widget_set_sensitive(widgets->save_button, TRUE);
         }
@@ -217,7 +221,7 @@ int main(int argc, char **argv)
     GtkApplication *app;
     int status;
 
-    AppWidgets *widgets = g_new(AppWidgets, 1);
+    AppWidgets *widgets = g_new0(AppWidgets, 1);
     widgets->current_pixbuf = NULL;
 
     app = gtk_application_new("com.example.cimagefilters", G_APPLICATION_DEFAULT_FLAGS);
@@ -226,11 +230,8 @@ int main(int argc, char **argv)
     g_object_unref(app);
 
     if (widgets->current_pixbuf)
-    {
         g_object_unref(widgets->current_pixbuf);
-    }
-    g_free(widgets);
 
+    g_free(widgets);
     return status;
 }
-
